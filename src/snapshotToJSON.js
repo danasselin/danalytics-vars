@@ -1,6 +1,9 @@
 const captureSnapshot = require('./captureSnapshot')
 const { saveToJSON } = require('./util')
 
-const [ , , name, url ] = process.argv
-
-captureSnapshot(url, saveToJSON.bind(null, name))
+module.exports = function (filename, url, callback) {
+  captureSnapshot(
+    url, 
+    saveToJSON.bind(null, filename, callback)
+  )
+}

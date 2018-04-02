@@ -2,37 +2,46 @@ const fs = require('fs')
 const captureSnapshot = require('./captureSnapshot')
 const chalk = require('chalk')
 
-const { pathToSnapshots } = require('./util')
+const { pathToSnapshots, logger } = require('./util')
 
-const [, , name] = process.argv
-
-// const filePath = `${url.split('/').join('|')}`
-
-fs.readFile(`${pathToSnapshots}/${name}`, 'utf8', function (err, data) {
-  if (err) throw err;
-  const prevSnap = JSON.parse(data)
-  const url = prevSnap['Current URL']
-  captureSnapshot(url, function (params) {
-    for (prop in params) {
-      if (params[prop] === prevSnap[prop]) {
-        console.log(
-          `${chalk.green('matched')}`,
-          `"${prevSnap[prop]}" for `,
-          `${chalk.green(`${prop}`)}`
-        )
-      } else {
-        console.log(
-          chalk.red(`mismatch `),
-          "for ",
-          `${chalk.red(`${prop}`)}`,
-          '\n',
-          chalk.green('EXPECTED: '),
-          `"${prevSnap[prop]}"`,
-          '\n',
-          chalk.red('RECIEVED: '),
-          `"${params[prop]}"`
-        )
-      }
+const match = function (prevSnap, params) {
+  for (prop in params) {
+    if (params[prop] === prevSnap[prop]) {
+      logger.match(prevSnap, prop)
+    } else {
+      logger.mismatch(params, prevSnap, prop)
     }
+  }
+  return Promise.resolve()
+}
+
+const getEnvUrl = function (env, snapshot) {
+  if (env === 'production') {
+    const canonical = snapshot['Current URL'].split('pb')
+    if (canonical && canonical[1]) {
+      // eVar20 is the site name, e.g., 'latimes'
+      return `http://${snapshot['eVar20']}.com${canonical[1]}`
+    } else {
+      throw new Error('Invalid URL structure. Must contain "pb" segment to fetch production version')
+    }
+  } else {
+    throw new Error('Support for "production" environments only at this time')
+  }
+}
+
+module.exports = function (filename, callback, env) {
+  const prevSnap = JSON.parse(
+    fs.readFileSync(`${pathToSnapshots()}/${filename}`, 'utf8')
+  )
+  const url = env ? getEnvUrl(env, prevSnap) : prevSnap['Current URL']
+  captureSnapshot(url, function (newSnap) {
+    match(prevSnap, newSnap)
+      .then(function () {
+        callback()
+      })
+      .catch(function (err) {
+        console.error(err)
+      })
   })
-});
+}
+
