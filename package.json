@@ -5,8 +5,8 @@
   "main": "src/index.js",
   "scripts": {
     "test": "test",
-    "snapshot-to-json": "node src/snapshotToJSON.js",
-    "compare-snapshot": "node src/compareSnapshot.js"
+    "snapshot-to-json": "node examples/capture.js",
+    "compare-snapshot": "node examples/compare.js"
   },
   "repository": {
     "type": "git",
